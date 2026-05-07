@@ -21,6 +21,23 @@ services:
     networks:
       - cdp-tenant
 
+  oracledb:
+    image: container-registry.oracle.com/database/free:23.8.0.0
+    ports:
+      - '1521:1521'
+    environment:
+      ORACLE_PWD: password
+    volumes:
+      - oracledb-data:/opt/oracle/oradata
+    healthcheck:
+      test: ['CMD', '/opt/oracle/checkDBStatus.sh']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    networks:
+      - cdp-tenant
+
   mongodb:
     image: mongo:7.0.28
     networks:
@@ -31,44 +48,15 @@ services:
       - ./compose/mongo:/docker-entrypoint-initdb.d:ro
       - mongodb-data:/data
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.hello().ok"]
+      test: ['CMD', 'mongosh', '--eval', 'db.hello().ok']
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 30s
 
-  ################################################################################
-
-  apha-integration-poc:
-    build:
-      context: .
-      target: development
-    ports:
-      - '3001:3001'
-    links:
-      - 'floci:floci'
-      - 'mongodb:mongodb'
-    depends_on:
-      floci:
-        condition: service_healthy
-      mongodb:
-        condition: service_started
-    env_file:
-      - 'compose/aws.env'
-    environment:
-      PORT: 3001
-      NODE_ENV: development
-      MONGO_URI: mongodb://mongodb:27017/
-    networks:
-      - cdp-tenant
-    volumes:
-      - ./src:/home/node/src
-      - ./package.json:/home/node/package.json
-
-################################################################################
-
 volumes:
   mongodb-data:
+  oracledb-data:
 
 networks:
   cdp-tenant:
