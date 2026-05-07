@@ -19,20 +19,44 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Test code and Create Test Coverage Reports
+      - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Install Oracle Instant Client
+        id: oracle
+        run: ./.github/scripts/oracle-instant-client.sh
+
+      - name: Free up disk space (before)
+        run: ./.github/scripts/free-disk-space.sh
+
+      - name: Login to oracle container registry
+        uses: docker/login-action@v3
+        with:
+          registry: container-registry.oracle.com
+          username: ${{ secrets.ORACLE_USERNAME }}
+          password: ${{ secrets.ORACLE_SECRET_KEY }}
+
+      - name: Start only oracledb compose service
+        run: npm run compose:up -- --no-deps oracledb
+
       - name: Security audit
         run: npm run security-audit
 
-      - run: |
-          npm ci
-          npm run format:check
-          npm run lint
-          npm test
+      - run: npm ci
+
+      - run: npm run format:check
+
+      - run: npm run lint
+
+      - run: npm test
+        env:
+          ORACLE_CLIENT_LIB_DIR: ${{ steps.oracle.outputs.install-path }}
+
+      - name: Free up disk space (after)
+        run: ./.github/scripts/free-disk-space.sh
 
       - name: Test Docker Image Build
         run: |

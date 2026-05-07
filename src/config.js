@@ -112,6 +112,122 @@ export const config = convict({
       }
     }
   },
+  oracledb: {
+    sam: {
+      username: {
+        doc: 'SAM Database username',
+        format: String,
+        default: 'system',
+        env: 'ORACLEDB_SAM_SMDB_USERNAME'
+      },
+      password: {
+        doc: 'SAM Database password',
+        format: String,
+        default: 'password',
+        sensitive: true,
+        env: 'ORACLEDB_SAM_SMDB_PASSWORD'
+      },
+      host: {
+        doc: 'SAM Database host (host:port)',
+        format: String,
+        default: 'localhost:1521',
+        env: 'ORACLEDB_SAM_SMDB_HOST'
+      },
+      dbname: {
+        doc: 'SAM Database service name',
+        format: String,
+        default: 'FREEPDB1',
+        env: 'ORACLEDB_SAM_SMDB_DBNAME'
+      },
+      poolMin: {
+        doc: 'SAM Database pool minimum connections',
+        format: Number,
+        default: 0,
+        env: 'ORACLEDB_SAM_SMDB_POOL_MIN'
+      },
+      poolMax: {
+        doc: 'SAM Database pool maximum connections',
+        format: Number,
+        default: 4,
+        env: 'ORACLEDB_SAM_SMDB_POOL_MAX'
+      },
+      poolTimeout: {
+        doc: 'SAM Database pool idle connection timeout (seconds)',
+        format: Number,
+        default: 60,
+        env: 'ORACLEDB_SAM_SMDB_POOL_TIMEOUT'
+      },
+      poolCloseWaitTime: {
+        doc: 'SAM Database pool close wait time (seconds)',
+        format: Number,
+        default: 10,
+        env: 'ORACLEDB_SAM_SMDB_POOL_CLOSE_WAIT_TIME'
+      },
+      poolAlias: {
+        doc: 'SAM Database pool alias (used for getPool lookups)',
+        format: String,
+        default: 'samPool',
+        env: 'ORACLEDB_SAM_SMDB_POOL_ALIAS'
+      }
+    },
+    pega: {
+      username: {
+        doc: 'PEGA Database username',
+        format: String,
+        default: 'system',
+        env: 'ORACLEDB_PEGA_USERNAME'
+      },
+      password: {
+        doc: 'PEGA Database password',
+        format: String,
+        default: 'password',
+        sensitive: true,
+        env: 'ORACLEDB_PEGA_PASSWORD'
+      },
+      host: {
+        doc: 'PEGA Database host (host:port)',
+        format: String,
+        default: 'localhost:1521',
+        env: 'ORACLEDB_PEGA_HOST'
+      },
+      dbname: {
+        doc: 'PEGA Database service name',
+        format: String,
+        default: 'FREEPDB1',
+        env: 'ORACLEDB_PEGA_DBNAME'
+      },
+      poolMin: {
+        doc: 'PEGA Database pool minimum connections',
+        format: Number,
+        default: 0,
+        env: 'ORACLEDB_PEGA_POOL_MIN'
+      },
+      poolMax: {
+        doc: 'PEGA Database pool maximum connections',
+        format: Number,
+        default: 4,
+        env: 'ORACLEDB_PEGA_POOL_MAX'
+      },
+      poolTimeout: {
+        doc: 'PEGA Database pool idle connection timeout (seconds)',
+        format: Number,
+        default: 60,
+        env: 'ORACLEDB_PEGA_POOL_TIMEOUT'
+      },
+      poolCloseWaitTime: {
+        doc: 'PEGA Database pool close wait time (seconds)',
+        format: Number,
+        default: 10,
+        env: 'ORACLEDB_PEGA_POOL_CLOSE_WAIT_TIME'
+      },
+      poolAlias: {
+        doc: 'PEGA Database pool alias (used for getPool lookups)',
+        format: String,
+        default: 'pegaPool',
+        env: 'ORACLEDB_PEGA_POOL_ALIAS'
+      }
+    }
+  },
   httpProxy: {
     doc: 'HTTP Proxy URL',
     format: String,
