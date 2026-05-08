@@ -39,6 +39,15 @@ jobs:
           username: ${{ secrets.ORACLE_USERNAME }}
           password: ${{ secrets.ORACLE_SECRET_KEY }}
 
+      - name: Security audit
+        run: npm run security-audit
+
+      - run: npm ci
+
+      - run: npm run format:check
+
+      - run: npm run lint
+
       - name: Prepare Oracle data directory
         run: |
           mkdir -p oracledb-data
@@ -52,15 +61,6 @@ jobs:
         run: |
           docker compose -f compose.yml ps oracledb || true
           docker compose -f compose.yml logs --tail=400 oracledb || true
-
-      - name: Security audit
-        run: npm run security-audit
-
-      - run: npm ci
-
-      - run: npm run format:check
-
-      - run: npm run lint
 
       - run: npm test
         env:
