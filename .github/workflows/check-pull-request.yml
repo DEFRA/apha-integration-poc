@@ -39,8 +39,19 @@ jobs:
           username: ${{ secrets.ORACLE_USERNAME }}
           password: ${{ secrets.ORACLE_SECRET_KEY }}
 
+      - name: Prepare Oracle data directory
+        run: |
+          mkdir -p oracledb-data
+          chmod 0777 oracledb-data
+
       - name: Start only oracledb compose service
         run: npm run compose:up -- --wait --no-deps oracledb
+
+      - name: Oracle diagnostics on failure
+        if: failure()
+        run: |
+          docker compose -f compose.yml ps oracledb || true
+          docker compose -f compose.yml logs --tail=400 oracledb || true
 
       - name: Security audit
         run: npm run security-audit
