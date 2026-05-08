@@ -4,9 +4,9 @@ services:
   floci:
     image: hectorvent/floci:latest-aws
     ports:
-      - '4566:4566'
+      - "4566:4566"
     env_file:
-      - 'compose/aws.env'
+      - "compose/aws.env"
     environment:
       FLOCI_DEFAULT_REGION: eu-west-2
     volumes:
@@ -17,20 +17,22 @@ services:
   redis:
     image: redis:7.2.3-alpine3.18
     ports:
-      - '6379:6379'
+      - "6379:6379"
     networks:
       - cdp-tenant
 
   oracledb:
     image: container-registry.oracle.com/database/free:23.8.0.0
     ports:
-      - '1521:1521'
+      - "1521:1521"
     environment:
       ORACLE_PWD: password
     volumes:
-      - oracledb-data:/opt/oracle/oradata
+      - ./oracledb-data:/opt/oracle/oradata
+      - ./compose/oracledb/setup.d:/opt/oracle/scripts/setup:ro
+      - ./compose/oracledb/start.d:/opt/oracle/scripts/startup:ro
     healthcheck:
-      test: ['CMD', '/opt/oracle/checkDBStatus.sh']
+      test: ["CMD", "/opt/oracle/checkDBStatus.sh"]
       interval: 10s
       timeout: 5s
       retries: 30
@@ -43,12 +45,12 @@ services:
     networks:
       - cdp-tenant
     ports:
-      - '27017:27017'
+      - "27017:27017"
     volumes:
       - ./compose/mongo:/docker-entrypoint-initdb.d:ro
       - mongodb-data:/data
     healthcheck:
-      test: ['CMD', 'mongosh', '--eval', 'db.hello().ok']
+      test: ["CMD", "mongosh", "--eval", "db.hello().ok"]
       interval: 10s
       timeout: 5s
       retries: 3
