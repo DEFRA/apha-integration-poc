@@ -40,7 +40,7 @@ jobs:
           password: ${{ secrets.ORACLE_SECRET_KEY }}
 
       - name: Start only oracledb compose service
-        run: npm run compose:up -- --no-deps oracledb
+        run: npm run compose:up -- --wait --no-deps oracledb
 
       - name: Security audit
         run: npm run security-audit
