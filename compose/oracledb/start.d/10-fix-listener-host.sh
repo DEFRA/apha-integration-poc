@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 
 # Oracle persists listener hostnames in dbconfig; after container recreation the old hostname can break listener startup.
 CFG_DIR="/opt/oracle/oradata/dbconfig/FREE"
