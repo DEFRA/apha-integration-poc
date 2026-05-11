@@ -29,7 +29,8 @@ export const mongoDb = {
       server.events.on('stop', async () => {
         server.logger.info('Closing Mongo client')
         try {
-          await client.close(true)
+          // Graceful close avoids interrupting in-flight operations during shutdown.
+          await client.close()
         } catch (e) {
           server.logger.error(e, 'failed to close mongo client')
         }
