@@ -28,7 +28,6 @@ services:
     environment:
       ORACLE_PWD: password
     volumes:
-      - ./oracledb-data:/opt/oracle/oradata
       - ./compose/oracledb/setup.d:/opt/oracle/scripts/setup:ro
       - ./compose/oracledb/start.d:/opt/oracle/scripts/startup:ro
     healthcheck:

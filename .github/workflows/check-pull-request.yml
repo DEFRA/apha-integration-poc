@@ -48,11 +48,6 @@ jobs:
 
       - run: npm run lint
 
-      - name: Prepare Oracle data directory
-        run: |
-          mkdir -p oracledb-data
-          chmod 0777 oracledb-data
-
       - name: Start only oracledb compose service
         run: npm run compose:up -- --wait --no-deps oracledb
 
