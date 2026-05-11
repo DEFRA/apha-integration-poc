@@ -13,6 +13,10 @@ describe('#mongoDb', () => {
       await server.initialize()
     })
 
+    afterAll(async () => {
+      await server.stop({ timeout: 1000 })
+    })
+
     test('Server should have expected MongoDb decorators', () => {
       expect(server.db).toBeInstanceOf(Db)
       expect(server.mongoClient).toBeInstanceOf(MongoClient)
@@ -42,6 +46,21 @@ describe('#mongoDb', () => {
       await server.stop({ timeout: 1000 })
 
       expect(closeSpy).toHaveBeenCalledWith()
+    })
+
+    test('Should not throw if Mongo client close rejects', async () => {
+      // Dynamic import needed due to config being updated by vitest-mongodb
+      const { createServer } = await import('#/server.js')
+      const secondServer = await createServer()
+      await secondServer.initialize()
+
+      vi.spyOn(secondServer.mongoClient, 'close').mockRejectedValueOnce(
+        new Error('close failed')
+      )
+
+      await expect(
+        secondServer.stop({ timeout: 1000 })
+      ).resolves.toBeUndefined()
     })
   })
 })

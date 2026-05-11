@@ -26,14 +26,18 @@ export const mongoDb = {
       server.decorate('request', 'db', () => db, { apply: true })
       server.decorate('request', 'locker', () => locker, { apply: true })
 
+      let closeClientPromise
+
       server.events.on('stop', async () => {
         server.logger.info('Closing Mongo client')
-        try {
-          // Graceful close avoids interrupting in-flight operations during shutdown.
-          await client.close()
-        } catch (e) {
-          server.logger.error(e, 'failed to close mongo client')
+
+        if (!closeClientPromise) {
+          closeClientPromise = client.close().catch((e) => {
+            server.logger.error(e, 'failed to close mongo client')
+          })
         }
+
+        await closeClientPromise
       })
     }
   }
