@@ -12,7 +12,7 @@ permissions:
 
 env:
   AWS_REGION: eu-west-2
-  AWS_ACCOUNT_ID: '094954420758'
+  AWS_ACCOUNT_ID: "094954420758"
 
 jobs:
   build:
@@ -40,8 +40,13 @@ jobs:
         id: oracle
         run: ./.github/scripts/oracle-instant-client.sh
 
+      - name: Prepare Oracle data directory
+        run: |
+          mkdir -p oracledb-data
+          chmod 0777 oracledb-data
+
       - name: Start only oracledb compose service
-        run: npm run compose:up -- --no-deps oracledb
+        run: npm run compose:up -- --wait --no-deps oracledb
 
       - run: npm ci
 
