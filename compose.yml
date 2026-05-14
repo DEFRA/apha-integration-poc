@@ -28,8 +28,12 @@ services:
     environment:
       ORACLE_PWD: password
     volumes:
-      - ./compose/oracledb/setup.d:/opt/oracle/scripts/setup:ro
-      - ./compose/oracledb/start.d:/opt/oracle/scripts/startup:ro
+      # Mounted as `startup` (not `setup`) because the Oracle Free image ships
+      # with a pre-built database; `setup` only runs during fresh DB creation
+      # which never happens for end users. `startup` runs on every container
+      # start, and our seed scripts are idempotent (DROP/CREATE with EXCEPTION
+      # WHEN OTHERS handlers).
+      - ./compose/oracledb/setup.d:/opt/oracle/scripts/startup:ro
     healthcheck:
       test: ["CMD", "/opt/oracle/checkDBStatus.sh"]
       interval: 10s

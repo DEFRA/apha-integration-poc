@@ -6,12 +6,20 @@ import { createLogger } from '#/common/helpers/logging/logger.js'
 const logger = createLogger()
 
 export async function initOracleDb() {
+  const libDir = config.get('oracleClientLibDir')
+
+  if (libDir && oracledb.thin) {
+    logger.info(`Initialising oracledb Thick mode (libDir: ${libDir})`)
+
+    oracledb.initOracleClient({ libDir })
+  }
+
   const pools = config.get('oracledb')
 
   for (const [name, cfg] of Object.entries(pools)) {
     logger.info(`Creating OracleDB pool "${name}" (alias: ${cfg.poolAlias})`)
 
-    await oracledb.createPool({
+    const poolOptions = {
       user: cfg.username,
       password: cfg.password,
       connectString: `${cfg.host}/${cfg.dbname}`,
@@ -19,7 +27,14 @@ export async function initOracleDb() {
       poolMax: cfg.poolMax,
       poolTimeout: cfg.poolTimeout,
       poolAlias: cfg.poolAlias
-    })
+    }
+
+    // Thick mode unlocks CQN; `events: true` lets the pool's connections receive callbacks.
+    if (!oracledb.thin) {
+      poolOptions.events = true
+    }
+
+    await oracledb.createPool(poolOptions)
   }
 }
 

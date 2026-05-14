@@ -228,6 +228,21 @@ export const config = convict({
       }
     }
   },
+  oracleClientLibDir: {
+    doc: 'Path to Oracle Instant Client libraries. When set, oracledb runs in Thick mode (required for CQN).',
+    format: String,
+    nullable: true,
+    default: null,
+    env: 'ORACLE_CLIENT_LIB_DIR'
+  },
+  cqn: {
+    enabled: {
+      doc: 'Register a Continuous Query Notification subscription on server start. Requires Thick mode (oracleClientLibDir).',
+      format: Boolean,
+      default: false,
+      env: 'CQN_ENABLED'
+    }
+  },
   httpProxy: {
     doc: 'HTTP Proxy URL',
     format: String,

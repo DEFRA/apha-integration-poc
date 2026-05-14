@@ -9,4 +9,8 @@ coverage
 .cache
 .eslintcache
 .env
+.env.local
+.env.*.local
+.env.keys
 /oracledb-data
+.schema
