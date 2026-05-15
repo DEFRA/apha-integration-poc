@@ -9,9 +9,16 @@ export async function initOracleDb() {
   const libDir = config.get('oracleClientLibDir')
 
   if (libDir && oracledb.thin) {
-    logger.info(`Initialising oracledb Thick mode (libDir: ${libDir})`)
+    // On Linux, passing libDir to initOracleClient segfaults — the Instant
+    // Client must instead be discoverable via LD_LIBRARY_PATH (set in the
+    // Dockerfile). libDir is only used for Thick mode on macOS/Windows.
+    const onLinux = process.platform === 'linux'
 
-    oracledb.initOracleClient({ libDir })
+    logger.info(
+      `Initialising oracledb Thick mode (${onLinux ? 'via LD_LIBRARY_PATH' : `libDir: ${libDir}`})`
+    )
+
+    oracledb.initOracleClient(onLinux ? {} : { libDir })
   }
 
   const pools = config.get('oracledb')
