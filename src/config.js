@@ -172,17 +172,20 @@ export const config = convict({
     },
     pega: {
       username: {
-        doc: 'PEGA Database username',
+        // PEGA reuses the SAM credentials in the deployed environment — only
+        // ORACLEDB_SAM_SMDB_USERNAME/PASSWORD are provisioned as secrets, and
+        // the bridge service authenticates the PEGA pool the same way.
+        doc: 'PEGA Database username (shared with SAM in the deployed env)',
         format: String,
         default: 'system',
-        env: 'ORACLEDB_PEGA_USERNAME'
+        env: 'ORACLEDB_SAM_SMDB_USERNAME'
       },
       password: {
-        doc: 'PEGA Database password',
+        doc: 'PEGA Database password (shared with SAM in the deployed env)',
         format: String,
         default: 'password',
         sensitive: true,
-        env: 'ORACLEDB_PEGA_PASSWORD'
+        env: 'ORACLEDB_SAM_SMDB_PASSWORD'
       },
       host: {
         doc: 'PEGA Database host (host:port)',
