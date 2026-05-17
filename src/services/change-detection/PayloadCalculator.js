@@ -102,7 +102,11 @@ export class PayloadCalculator {
         ORDER BY MAX_UPDATED_DATETIME
       `
 
-      const result = await connection.execute(query, { lastPollTime }, { outFormat: 4002 })
+      const result = await connection.execute(
+        query,
+        { lastPollTime },
+        { outFormat: 4002 }
+      )
       return result.rows.map((row) => this.buildPartyPayload(row))
     } finally {
       await connection.close()
@@ -117,7 +121,9 @@ export class PayloadCalculator {
       try {
         addresses = JSON.parse(row.ADDRESSES_JSON)
       } catch (e) {
-        this.logger.warn(`Failed to parse addresses JSON for party ${row.PARTY_PK}`)
+        this.logger.warn(
+          `Failed to parse addresses JSON for party ${row.PARTY_PK}`
+        )
       }
     }
 
@@ -131,7 +137,9 @@ export class PayloadCalculator {
           ? {
               givenName: row.PERSON_GIVEN_NAME,
               familyName: row.PERSON_FAMILY_NAME,
-              birthDate: row.PERSON_BIRTH_DATE ? row.PERSON_BIRTH_DATE.toISOString() : null
+              birthDate: row.PERSON_BIRTH_DATE
+                ? row.PERSON_BIRTH_DATE.toISOString()
+                : null
             }
           : null,
       organisation:
@@ -252,7 +260,11 @@ export class PayloadCalculator {
         ORDER BY MAX_UPDATED_DATETIME
       `
 
-      const result = await connection.execute(query, { lastPollTime }, { outFormat: 4002 })
+      const result = await connection.execute(
+        query,
+        { lastPollTime },
+        { outFormat: 4002 }
+      )
       return result.rows.map((row) => this.buildLocationPayload(row))
     } finally {
       await connection.close()
@@ -267,7 +279,9 @@ export class PayloadCalculator {
       try {
         addresses = JSON.parse(row.ADDRESSES_JSON)
       } catch (e) {
-        this.logger.warn(`Failed to parse addresses for location ${row.FEATURE_PK}`)
+        this.logger.warn(
+          `Failed to parse addresses for location ${row.FEATURE_PK}`
+        )
       }
     }
 
@@ -275,7 +289,9 @@ export class PayloadCalculator {
       try {
         assets = JSON.parse(row.ASSETS_JSON)
       } catch (e) {
-        this.logger.warn(`Failed to parse assets for location ${row.FEATURE_PK}`)
+        this.logger.warn(
+          `Failed to parse assets for location ${row.FEATURE_PK}`
+        )
       }
     }
 

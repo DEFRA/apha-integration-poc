@@ -23,8 +23,13 @@ export class ChangeDetector {
 
     this.logger.info(`Polling ${tableName} since ${lastPollTime.toISOString()}`)
 
-    const changedEntities = await this.getChangedEntities(tableName, lastPollTime)
-    this.logger.info(`Found ${changedEntities.length} changed ${tableName} rows`)
+    const changedEntities = await this.getChangedEntities(
+      tableName,
+      lastPollTime
+    )
+    this.logger.info(
+      `Found ${changedEntities.length} changed ${tableName} rows`
+    )
 
     let eventsEmitted = 0
     let unchangedCount = 0
@@ -77,7 +82,9 @@ export class ChangeDetector {
     const currentIds = await this.getCurrentIds(tableName)
     const deletedIds = knownIds.filter((id) => !currentIds.includes(id))
 
-    this.logger.info(`Detected ${deletedIds.length} deleted ${tableName} entities`)
+    this.logger.info(
+      `Detected ${deletedIds.length} deleted ${tableName} entities`
+    )
 
     for (const deletedId of deletedIds) {
       const hashDoc = await this.mongodb.collection('payload-hashes').findOne({
@@ -188,15 +195,19 @@ export class ChangeDetector {
   }
 
   async getLastPollTime(tableName) {
-    const doc = await this.mongodb.collection('poll-state').findOne({ table: tableName })
+    const doc = await this.mongodb
+      .collection('poll-state')
+      .findOne({ table: tableName })
     return doc?.lastPollTime || new Date(Date.now() - 24 * 60 * 60 * 1000)
   }
 
   async updateLastPollTime(tableName, pollTime) {
-    await this.mongodb.collection('poll-state').updateOne(
-      { table: tableName },
-      { $set: { lastPollTime: pollTime, lastPollSuccess: new Date() } },
-      { upsert: true }
-    )
+    await this.mongodb
+      .collection('poll-state')
+      .updateOne(
+        { table: tableName },
+        { $set: { lastPollTime: pollTime, lastPollSuccess: new Date() } },
+        { upsert: true }
+      )
   }
 }

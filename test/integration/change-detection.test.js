@@ -71,8 +71,12 @@ async function updateTimestampOnly(oraclePool, partyPk) {
 async function deleteParty(oraclePool, partyPk) {
   const connection = await oraclePool.getConnection()
   try {
-    await connection.execute('DELETE FROM PARTY_STATE WHERE PARTY_PK = :pk', { pk: partyPk })
-    await connection.execute('DELETE FROM PARTY WHERE PARTY_PK = :pk', { pk: partyPk })
+    await connection.execute('DELETE FROM PARTY_STATE WHERE PARTY_PK = :pk', {
+      pk: partyPk
+    })
+    await connection.execute('DELETE FROM PARTY WHERE PARTY_PK = :pk', {
+      pk: partyPk
+    })
     await connection.commit()
   } finally {
     await connection.close()
@@ -98,34 +102,47 @@ async function runTests() {
 
   const eventBus = new InMemoryEventBus()
   const payloadCalculator = new PayloadCalculator(oraclePool)
-  const changeDetector = new ChangeDetector(oraclePool, mongodb, eventBus, payloadCalculator)
+  const changeDetector = new ChangeDetector(
+    oraclePool,
+    mongodb,
+    eventBus,
+    payloadCalculator
+  )
 
   try {
     await cleanState(mongodb)
 
     const baseline = await changeDetector.pollForChanges('PARTY')
-    console.log(`Baseline: scanned=${baseline.rowsScanned} events=${baseline.eventsEmitted}`)
+    console.log(
+      `Baseline: scanned=${baseline.rowsScanned} events=${baseline.eventsEmitted}`
+    )
 
     await new Promise((resolve) => setTimeout(resolve, 2000))
 
-    await mongodb.collection('poll-state').updateOne(
-      { table: 'PARTY' },
-      { $set: { lastPollTime: new Date(Date.now() - 60 * 1000) } }
-    )
+    await mongodb
+      .collection('poll-state')
+      .updateOne(
+        { table: 'PARTY' },
+        { $set: { lastPollTime: new Date(Date.now() - 60 * 1000) } }
+      )
 
     const party = await getFirstParty(oraclePool)
     await updateParty(oraclePool, party.PARTY_PK, `UPDATED-${party.PARTY_ID}`)
 
     eventBus.clear()
     const updateResult = await changeDetector.pollForChanges('PARTY')
-    console.log(`Update: scanned=${updateResult.rowsScanned} events=${updateResult.eventsEmitted}`)
+    console.log(
+      `Update: scanned=${updateResult.rowsScanned} events=${updateResult.eventsEmitted}`
+    )
 
     await new Promise((resolve) => setTimeout(resolve, 2000))
 
-    await mongodb.collection('poll-state').updateOne(
-      { table: 'PARTY' },
-      { $set: { lastPollTime: new Date(Date.now() - 60 * 1000) } }
-    )
+    await mongodb
+      .collection('poll-state')
+      .updateOne(
+        { table: 'PARTY' },
+        { $set: { lastPollTime: new Date(Date.now() - 60 * 1000) } }
+      )
 
     await updateTimestampOnly(oraclePool, party.PARTY_PK)
 

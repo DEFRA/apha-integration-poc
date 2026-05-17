@@ -1,6 +1,6 @@
 # Change Detection POC
 
-Created this  poc for detecting changes in the Oracle SAM database using a simple polling approach with hash comparison
+Created this poc for detecting changes in the Oracle SAM database using a simple polling approach with hash comparison
 
 ---
 
@@ -14,6 +14,7 @@ node test/integration/change-detection.test.js
 ```
 
 **Tests verify:**
+
 - CREATE detection (baseline poll)
 - UPDATE detection (name change)
 - False positive avoidance (timestamp-only updates ignored)
@@ -42,4 +43,4 @@ A: <100 queries/min for 38 tables (1 query per table every 30-45s). Minimal if i
 A: Hash comparison prevents false positives. Only emit events when hash actually changes.
 
 **Q: Can we scale this to all 38 SAM tables?**
-A: Yes. Add table config to `table-config.js` and implement payload method in `PayloadCalculator.js`. 
+A: Yes. Add table config to `table-config.js` and implement payload method in `PayloadCalculator.js`.
