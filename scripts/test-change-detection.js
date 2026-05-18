@@ -1,7 +1,7 @@
 import oracledb from 'oracledb'
 import { MongoClient } from 'mongodb'
-import { PayloadCalculator } from '../../src/services/change-detection/PayloadCalculator.js'
-import { ChangeDetector } from '../../src/services/change-detection/ChangeDetector.js'
+import { PayloadCalculator } from '../src/services/change-detection/PayloadCalculator.js'
+import { ChangeDetector } from '../src/services/change-detection/ChangeDetector.js'
 
 class InMemoryEventBus {
   constructor() {

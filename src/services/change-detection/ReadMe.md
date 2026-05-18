@@ -10,7 +10,7 @@ Created this poc for detecting changes in the Oracle SAM database using a simple
 npm run compose:up
 
 # Wait for Oracle and then run integration tests
-node test/integration/change-detection.test.js
+node scripts/test-change-detection.js
 ```
 
 **Tests verify:**
