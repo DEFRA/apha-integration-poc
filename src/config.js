@@ -238,12 +238,61 @@ export const config = convict({
     default: null,
     env: 'ORACLE_CLIENT_LIB_DIR'
   },
-  cqn: {
+  changeDetection: {
     enabled: {
-      doc: 'Register a Continuous Query Notification subscription on server start. Requires Thick mode (oracleClientLibDir).',
+      doc: 'Enable the change-detection subsystem on server start. Reads from materialised views, diffs against a Mongo-backed row-state store, and emits domain change events. CQN is used as an optional fast-path wake-up; the timer-driven sweep is the resilience backstop.',
       format: Boolean,
       default: false,
-      env: 'CQN_ENABLED'
+      env: 'CHANGE_DETECTION_ENABLED'
+    },
+    defaultIntervalMs: {
+      doc: 'Default sweep interval (ms) — the safety-net poll that ensures changes are never missed even when CQN is silent.',
+      format: Number,
+      default: 60_000,
+      env: 'CHANGE_DETECTION_INTERVAL_MS'
+    },
+    mvOwnerUser: {
+      doc: 'Oracle user that OWNS the materialised views (the schema they live in). The app opens a short-lived connection as this user to create any missing MVs on start — Oracle requires the MV-owning user to be the session user when the defining query crosses schemas (e.g. APHA_POC.ahwork_ac_mv selecting from PEGA_DATA.ahwork_ac).',
+      format: String,
+      default: 'apha_poc',
+      env: 'CHANGE_DETECTION_MV_OWNER_USER'
+    },
+    mvOwnerPassword: {
+      doc: 'Password for the materialised-view owner user.',
+      format: String,
+      default: 'password',
+      sensitive: true,
+      env: 'CHANGE_DETECTION_MV_OWNER_PASSWORD'
+    },
+    sources: {
+      workorders: {
+        pool: {
+          doc: 'Name of the OracleDB pool (key under `oracledb`) this source belongs to.',
+          format: String,
+          default: 'pega'
+        },
+        sourceTable: {
+          doc: 'Fully-qualified source table the MV mirrors. Used in logs/diagnostics only.',
+          format: String,
+          default: 'PEGA_DATA.AHWORK_AC'
+        },
+        mv: {
+          doc: 'Fully-qualified materialised view the detector reads from.',
+          format: String,
+          default: 'APHA_POC.AHWORK_AC_MV'
+        },
+        primaryKey: {
+          doc: 'Column name (lowercase) used to identify a row across sweeps.',
+          format: String,
+          default: 'pyid'
+        },
+        cqnQuery: {
+          doc: 'Optional CQN query that wakes the detector when the source changes. When omitted the source runs timer-only.',
+          format: String,
+          nullable: true,
+          default: 'SELECT pyid, pystatuswork FROM pega_data.ahwork_ac'
+        }
+      }
     }
   },
   httpProxy: {

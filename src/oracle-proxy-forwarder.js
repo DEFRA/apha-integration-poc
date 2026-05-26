@@ -5,7 +5,7 @@
  * thick mode (which we need for cqn) does not — it tries plain tcp to the
  * oracle ip, finds no route from inside the pod, and times out.
  *
- * fix: run a tiny tcp server on localhost per unique upstream, rewrite each
+ * solution: run a tiny tcp server on localhost per unique upstream, rewrite each
  * pool's connect string to point at it, and have it dial squid and issue an
  * http connect to the real oracle host:port. once squid replies "200", the
  * two sockets are glued together for transparent bidirectional bytes.
