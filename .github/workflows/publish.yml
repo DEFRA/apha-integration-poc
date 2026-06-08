@@ -50,7 +50,7 @@ jobs:
           ORACLE_CLIENT_LIB_DIR: ${{ steps.oracle.outputs.install-path }}
 
       - name: Build and Publish
-        uses: DEFRA/cdp-build-action/build@550c4792fac07cfd59eaea469bc0a17ce202cced # main
+        uses: DEFRA/cdp-build-action/build@bdfd3f8a3ce9adb830c2af4ce994a74af4c61e8e # main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
