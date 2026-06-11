@@ -2,9 +2,11 @@ import { createChangeQuery } from '#/cqn.js'
 
 /**
  * Wrap a CQN subscription so its only externally visible effect is calling
- * `onWakeup()` whenever the database says "something changed". The actual
- * row-level diffing happens in the detector's sweep — CQN here is reduced to
- * a low-latency "wake up and re-check" signal.
+ * `onWakeup(notification)` whenever the database says "something changed".
+ * The actual row-level diffing happens in the detector's sweep — CQN here is
+ * reduced to a low-latency "wake up and re-check" signal. The notification
+ * payload (table, operation, rowids) is passed along for callers that want
+ * to log it; sweep-driven callers are free to ignore it.
  *
  * Resilience properties:
  *   - if the subscription is deregistered by the database, we surface that
@@ -25,9 +27,9 @@ export async function startCqnWakeup({
 }) {
   const subscription = await createChangeQuery({ pool, query })
 
-  subscription.emitter.on('change', () => {
+  subscription.emitter.on('change', (notification) => {
     try {
-      onWakeup()
+      onWakeup(notification)
     } catch (err) {
       logger.error({ err }, 'CQN wake-up handler threw')
     }

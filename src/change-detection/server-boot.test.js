@@ -55,6 +55,7 @@ describe.skipIf(skip)(
     let workordersSource
     let originalEnabled
     let originalInterval
+    let originalMvEnabled
 
     beforeAll(async () => {
       // Memory mongo is up by now (vitest-mongodb's setup beforeAll ran first
@@ -81,14 +82,20 @@ describe.skipIf(skip)(
 
       originalEnabled = config.get('changeDetection.enabled')
       originalInterval = config.get('changeDetection.defaultIntervalMs')
+      originalMvEnabled = config.get('changeDetection.mvEnabled')
 
       config.set('changeDetection.enabled', true)
       config.set('changeDetection.defaultIntervalMs', 500)
+
+      // These boot scenarios exercise the MV deploy path; the default is
+      // CQN-only.
+      config.set('changeDetection.mvEnabled', true)
     }, 60_000)
 
     afterAll(async () => {
       config.set('changeDetection.enabled', originalEnabled)
       config.set('changeDetection.defaultIntervalMs', originalInterval)
+      config.set('changeDetection.mvEnabled', originalMvEnabled)
 
       await mongoClient.close()
     })

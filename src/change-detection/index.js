@@ -97,7 +97,8 @@ class Registry {
         checkpointStore: this.checkpointStore,
         stateStore: this.stateStore,
         logger: this.logger,
-        intervalMs: config.get('changeDetection.defaultIntervalMs')
+        intervalMs: config.get('changeDetection.defaultIntervalMs'),
+        mvEnabled: config.get('changeDetection.mvEnabled')
       })
 
       entry = { detector, readyPromise: null }

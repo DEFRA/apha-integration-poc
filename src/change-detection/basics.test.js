@@ -27,6 +27,7 @@ describe.skipIf(skip)('#change-detection: basic event emission', () => {
   let client
   let db
   let originalIntervalMs
+  let originalMvEnabled
 
   beforeAll(async () => {
     await initOracleDb()
@@ -35,6 +36,10 @@ describe.skipIf(skip)('#change-detection: basic event emission', () => {
     db = client.db('change-detection-test')
 
     originalIntervalMs = config.get('changeDetection.defaultIntervalMs')
+    originalMvEnabled = config.get('changeDetection.mvEnabled')
+
+    // This suite exercises the full MV pipeline; the default is CQN-only.
+    config.set('changeDetection.mvEnabled', true)
   }, 60_000)
 
   afterAll(async () => {
@@ -43,6 +48,7 @@ describe.skipIf(skip)('#change-detection: basic event emission', () => {
     await client.close()
 
     config.set('changeDetection.defaultIntervalMs', originalIntervalMs)
+    config.set('changeDetection.mvEnabled', originalMvEnabled)
   })
 
   beforeEach(async () => {

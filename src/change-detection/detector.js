@@ -28,6 +28,12 @@ import { ensureMaterializedView } from '#/change-detection/mv-setup.js'
  * reloads the MV; block-level ORA_ROWSCN false-positives a whole block of
  * rows on every commit. The hash is what makes the system correct — the
  * watermark is just an optimization for skipping rows we've already seen.
+ *
+ * CQN-only mode (`mvEnabled: false`): the whole MV pipeline — deploy,
+ * refresh, sweeps, timer — is skipped, and CQN notifications are logged
+ * instead of triggering sweeps. No domain events are emitted in this mode.
+ * It exists to prove the CQN grant (GRANT CHANGE NOTIFICATION) works in a
+ * deployed environment before the DBA has applied the MV grants.
  */
 export class Detector extends EventEmitter {
   constructor({
@@ -36,7 +42,8 @@ export class Detector extends EventEmitter {
     checkpointStore,
     stateStore,
     logger,
-    intervalMs
+    intervalMs,
+    mvEnabled = true
   }) {
     super()
 
@@ -46,6 +53,7 @@ export class Detector extends EventEmitter {
     this.stateStore = stateStore
     this.logger = logger.child({ source: sourceName })
     this.intervalMs = intervalMs
+    this.mvEnabled = mvEnabled
 
     this.timer = undefined
     this.cqn = undefined
@@ -65,26 +73,41 @@ export class Detector extends EventEmitter {
    * matching SQL file. Idempotent and safe to retry. If this step fails,
    * we throw — there's no point starting the sweep loop against a missing
    * MV.
+   *
+   * With `mvEnabled: false`, all of the above is skipped and only the CQN
+   * subscription comes up (notifications are logged, not swept).
    */
   async start() {
-    await ensureMaterializedView({
-      sourceName: this.sourceName,
-      sourceConfig: this.sourceConfig,
-      logger: this.logger
-    })
+    if (this.mvEnabled) {
+      await ensureMaterializedView({
+        sourceName: this.sourceName,
+        sourceConfig: this.sourceConfig,
+        logger: this.logger
+      })
 
-    this.timer = setInterval(() => {
-      this.triggerSweep('timer').catch((err) =>
-        this.logger.error({ err }, 'Timer-driven sweep failed')
+      this.timer = setInterval(() => {
+        this.triggerSweep('timer').catch((err) =>
+          this.logger.error({ err }, 'Timer-driven sweep failed')
+        )
+      }, this.intervalMs)
+      this.timer.unref?.()
+    } else {
+      this.logger.info(
+        'MV pipeline disabled (changeDetection.mvEnabled=false) — skipping MV deploy and sweeps; CQN notifications are log-only'
       )
-    }, this.intervalMs)
-    this.timer.unref?.()
+    }
 
     if (this.sourceConfig.cqnQuery && !oracledb.thin) {
       await this.subscribeCqn()
     } else if (this.sourceConfig.cqnQuery && oracledb.thin) {
       this.logger.warn(
-        'CQN wake-up requested but oracledb is in Thin mode; running timer-only'
+        this.mvEnabled
+          ? 'CQN wake-up requested but oracledb is in Thin mode; running timer-only'
+          : 'CQN wake-up requested but oracledb is in Thin mode; MV pipeline also disabled — source is inactive'
+      )
+    } else if (!this.sourceConfig.cqnQuery && !this.mvEnabled) {
+      this.logger.warn(
+        'Neither MV pipeline nor CQN configured — source is inactive'
       )
     }
   }
@@ -92,6 +115,10 @@ export class Detector extends EventEmitter {
   async triggerStartupSweep() {
     // Initial sweep is the "catch-up" — anything that changed while the app
     // was offline is detected here, AFTER the first consumer has subscribed.
+    if (!this.mvEnabled) {
+      return
+    }
+
     return this.triggerSweep('startup')
   }
 
@@ -100,7 +127,17 @@ export class Detector extends EventEmitter {
       this.cqn = await startCqnWakeup({
         pool: this.sourceConfig.pool,
         query: this.sourceConfig.cqnQuery,
-        onWakeup: () => {
+        onWakeup: (notification) => {
+          if (!this.mvEnabled) {
+            // CQN-only mode: the notification itself is the deliverable.
+            this.logger.info(
+              { notification },
+              'CQN notification received (MV pipeline disabled; log-only)'
+            )
+
+            return
+          }
+
           this.triggerSweep('cqn').catch((err) =>
             this.logger.error({ err }, 'CQN-triggered sweep failed')
           )
@@ -118,10 +155,13 @@ export class Detector extends EventEmitter {
         'CQN wake-up subscribed'
       )
     } catch (err) {
-      // Timer-only operation is still correct, just higher-latency.
+      // With the MV pipeline up, timer-only operation is still correct, just
+      // higher-latency. Without it, this source now does nothing — say so.
       this.logger.warn(
         { err },
-        'CQN wake-up failed to subscribe; running timer-only'
+        this.mvEnabled
+          ? 'CQN wake-up failed to subscribe; running timer-only'
+          : 'CQN subscribe failed and MV pipeline is disabled — source is inactive'
       )
 
       throw err
@@ -170,7 +210,9 @@ export class Detector extends EventEmitter {
    * coalesced follow-up) completes — `stop()` awaits this to drain.
    */
   triggerSweep(reason) {
-    if (this.stopped) {
+    // mvEnabled guard is belt-and-braces: in CQN-only mode nothing should
+    // call this, but a sweep against a missing MV must never run.
+    if (this.stopped || !this.mvEnabled) {
       return Promise.resolve()
     }
 

@@ -240,10 +240,16 @@ export const config = convict({
   },
   changeDetection: {
     enabled: {
-      doc: 'Enable the change-detection subsystem on server start. Reads from materialised views, diffs against a Mongo-backed row-state store, and emits domain change events. CQN is used as an optional fast-path wake-up; the timer-driven sweep is the resilience backstop.',
+      doc: 'Enable the change-detection subsystem on server start. Reads from materialised views, diffs against a Mongo-backed row-state store, and emits domain change events. CQN is used as an optional fast-path wake-up; the timer-driven sweep is the resilience backstop. Default is true while the deployed-environment CQN grant test is running (see mvEnabled).',
+      format: Boolean,
+      default: true,
+      env: 'CHANGE_DETECTION_ENABLED'
+    },
+    mvEnabled: {
+      doc: 'Enable the materialised-view pipeline: self-serve MV deploy on start, plus the refresh-and-sweep loop that emits domain events. Default is false for the deployed-environment grant test — with this off, the detector only registers the CQN subscription and logs raw notifications, which needs nothing beyond GRANT CHANGE NOTIFICATION (and SELECT on the source table). Turn on once the DBA has applied the MV grants (CREATE MATERIALIZED VIEW, CREATE TABLE, tablespace quota, direct SELECT on source tables).',
       format: Boolean,
       default: false,
-      env: 'CHANGE_DETECTION_ENABLED'
+      env: 'CHANGE_DETECTION_MV_ENABLED'
     },
     defaultIntervalMs: {
       doc: 'Default sweep interval (ms) — the safety-net poll that ensures changes are never missed even when CQN is silent.',
