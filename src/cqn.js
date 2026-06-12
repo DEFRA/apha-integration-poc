@@ -14,7 +14,21 @@ export async function createChangeQuery({ pool, query }) {
 
   const name = `cqn_${process.pid}_${Date.now()}_${++counter}`
 
+  // The subscribing connection must stay open for the life of the
+  // subscription — node-oracledb ties the registration to it. Releasing it
+  // back to the pool while subscribed leaves the client library's
+  // notification machinery referencing a recycled connection, which shows
+  // up as nondeterministic hangs at process exit (CI workers killed with
+  // "Worker exited unexpectedly" after every test passed).
   const connection = await getPool(pool).getConnection()
+
+  const closeConnection = async () => {
+    try {
+      await connection.close()
+    } catch {
+      // Already closed or the pool is shutting down — nothing to release.
+    }
+  }
 
   const operations =
     oracledb.CQN_OPCODE_INSERT |
@@ -34,32 +48,38 @@ export async function createChangeQuery({ pool, query }) {
       // server → client. This is essential when running against an OracleDB
       // that can't reach the machine (CDP pods without ingress, etc.).
       clientInitiated: true,
-      callback: (message) => emitChanges(emitter, message)
+      callback: (message) => {
+        if (message.type === oracledb.SUBSCR_EVENT_TYPE_DEREG) {
+          // Database-side deregistration: there is nothing left to
+          // unsubscribe, so release the held connection before telling
+          // listeners (who may immediately resubscribe on a fresh one).
+          closeConnection().finally(() => emitter.emit('deregistered'))
+
+          return
+        }
+
+        emitChanges(emitter, message)
+      }
     })
-  } finally {
-    await connection.close()
+  } catch (err) {
+    await closeConnection()
+
+    throw err
   }
 
   return {
     emitter,
     async unsubscribe() {
-      const conn = await getPool(pool).getConnection()
       try {
-        await conn.unsubscribe(name)
+        await connection.unsubscribe(name)
       } finally {
-        await conn.close()
+        await closeConnection()
       }
     }
   }
 }
 
 function emitChanges(emitter, message) {
-  if (message.type === oracledb.SUBSCR_EVENT_TYPE_DEREG) {
-    emitter.emit('deregistered')
-
-    return
-  }
-
   for (const query of message.queries ?? []) {
     for (const table of query.tables ?? []) {
       emitter.emit('change', {
