@@ -6,6 +6,10 @@ export default defineConfig({
     environment: 'node',
     clearMocks: true,
     fileParallelism: false,
+    // The change-detection suites are integration tests against a real
+    // Oracle: their hooks drain in-flight sweeps, unsubscribe CQN and close
+    // pools, which can exceed the 10s default on slow runners.
+    hookTimeout: 60_000,
     coverage: {
       provider: 'v8',
       reportsDirectory: './coverage',
