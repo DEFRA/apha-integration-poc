@@ -46,9 +46,14 @@ export const changeDetection = {
             'Change-detection source watching'
           )
         } catch (err) {
+          // First line of the error carries the Oracle code (ORA-/NJS-/DPI-)
+          // — inline it so the message is diagnostic on its own in log
+          // viewers that only list the message column.
+          const summary = String(err?.message ?? err).split('\n')[0]
+
           server.logger.error(
             { err, source: sourceName },
-            'Failed to start change-detection source'
+            `Failed to start change-detection source "${sourceName}": ${summary}`
           )
         }
       }

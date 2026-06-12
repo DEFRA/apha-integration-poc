@@ -157,11 +157,18 @@ export class Detector extends EventEmitter {
     } catch (err) {
       // With the MV pipeline up, timer-only operation is still correct, just
       // higher-latency. Without it, this source now does nothing — say so.
+      // The Oracle error (ORA-/NJS-/DPI- code) goes into the message itself:
+      // log viewers list the message column, and the nested err object is
+      // only visible after expanding the document.
       this.logger.warn(
-        { err },
+        {
+          err,
+          pool: this.sourceConfig.pool,
+          query: this.sourceConfig.cqnQuery
+        },
         this.mvEnabled
-          ? 'CQN wake-up failed to subscribe; running timer-only'
-          : 'CQN subscribe failed and MV pipeline is disabled — source is inactive'
+          ? `CQN wake-up failed to subscribe (${errSummary(err)}); running timer-only`
+          : `CQN subscribe failed (${errSummary(err)}) and MV pipeline is disabled — source is inactive`
       )
 
       throw err
@@ -323,7 +330,7 @@ export class Detector extends EventEmitter {
         'Sweep complete'
       )
     } catch (err) {
-      this.logger.error({ err, reason }, 'Sweep failed')
+      this.logger.error({ err, reason }, `Sweep failed: ${errSummary(err)}`)
 
       this.emit('error', err)
     } finally {
@@ -418,6 +425,13 @@ export class Detector extends EventEmitter {
 
     this.removeAllListeners()
   }
+}
+
+// node-oracledb 6 error messages append a multi-line "Help:" URL; the first
+// line carries the ORA-/NJS-/DPI- code and description, which is all a log
+// message needs.
+function errSummary(err) {
+  return String(err?.message ?? err).split('\n')[0]
 }
 
 function safeEmit(emitter, eventName, payload, logger) {
