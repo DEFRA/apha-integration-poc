@@ -48,7 +48,7 @@ jobs:
           ORACLE_CLIENT_LIB_DIR: ${{ steps.oracle.outputs.install-path }}
 
       - name: Publish Hot Fix
-        uses: DEFRA/cdp-build-action/build-hotfix@550c4792fac07cfd59eaea469bc0a17ce202cced # main
+        uses: DEFRA/cdp-build-action/build-hotfix@9d9b624a3f6c2f14763700d38561f9a32fd9ff3f # main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
