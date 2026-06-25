@@ -12,15 +12,27 @@ on:
       - ready_for_review
 
 jobs:
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+      - name: Dependency Review
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: low
+
   pr-validator:
     name: Run Pull Request Checks
+    needs: dependency-review
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -33,7 +45,7 @@ jobs:
         run: ./.github/scripts/free-disk-space.sh
 
       - name: Login to oracle container registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: container-registry.oracle.com
           username: ${{ secrets.ORACLE_USERNAME }}
