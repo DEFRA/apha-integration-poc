@@ -134,9 +134,9 @@ describe('#change-detection classify: planChanges', () => {
   })
 
   test('priorState key-type mismatch misses and reclassifies a real update as insert', () => {
-    // Row id is a string; prior is keyed by a number. Map.get('1') !== get(1),
-    // so the lookup misses and the row looks brand new. Pins the contract that
-    // the keys must match exactly (a coercion regression would change this).
+    // Row id is the number 1; prior is keyed by the string '1'. Map.get(1) !==
+    // get('1'), so the lookup misses and the row looks brand new. Pins the
+    // contract that keys must match exactly (a coercion regression flips this).
     const numericRow = { pyid: 1, pystatuswork: 'Closed', source_scn: 100 }
 
     const { entries } = planChanges({
@@ -146,5 +146,78 @@ describe('#change-detection classify: planChanges', () => {
     })
 
     expect(entries[0].event.type).toBe('insert')
+  })
+
+  test('classification is driven only by the hash — a matching hash skips even if the prior payload object differs', () => {
+    const current = { pyid: 'A-1', pystatuswork: 'Open' }
+
+    const { entries } = planChanges({
+      rows: [row()],
+      primaryKey: 'pyid',
+      // Same hash as the current payload, but a different stored payload object.
+      priorState: new Map([
+        ['A-1', { payloadHash: hashPayload(current), payload: { stale: true } }]
+      ])
+    })
+
+    expect(entries[0].event).toBeUndefined()
+  })
+
+  test('an all-skip batch emits nothing but still reports maxScn (the all-no-op checkpoint case)', () => {
+    const a = { pyid: 'A-1', pystatuswork: 'Open' }
+    const b = { pyid: 'B-1', pystatuswork: 'Open' }
+
+    const { entries, maxScn } = planChanges({
+      rows: [
+        row({ pyid: 'A-1', source_scn: 120 }),
+        row({ pyid: 'B-1', source_scn: 90 })
+      ],
+      primaryKey: 'pyid',
+      priorState: new Map([
+        ['A-1', priorFor(a)],
+        ['B-1', priorFor(b)]
+      ])
+    })
+
+    expect(entries.every((e) => e.event === undefined)).toBe(true)
+    expect(maxScn).toBe(120)
+  })
+
+  test('source_scn arriving as a numeric string is coerced and used', () => {
+    const { entries, maxScn } = planChanges({
+      rows: [row({ source_scn: '300' })],
+      primaryKey: 'pyid',
+      priorState: new Map()
+    })
+
+    expect(entries[0].sourceScn).toBe(300)
+    expect(maxScn).toBe(300)
+  })
+
+  test('a later row with a lower scn does not lower maxScn', () => {
+    const { maxScn } = planChanges({
+      rows: [
+        row({ pyid: 'A-1', source_scn: 300 }),
+        row({ pyid: 'B-1', source_scn: 100 })
+      ],
+      primaryKey: 'pyid',
+      priorState: new Map()
+    })
+
+    expect(maxScn).toBe(300)
+  })
+
+  test('a non-numeric source_scn (NaN) does not poison maxScn for later valid rows', () => {
+    const { entries, maxScn } = planChanges({
+      rows: [
+        row({ pyid: 'A-1', source_scn: undefined }),
+        row({ pyid: 'B-1', source_scn: 200 })
+      ],
+      primaryKey: 'pyid',
+      priorState: new Map()
+    })
+
+    expect(Number.isNaN(entries[0].sourceScn)).toBe(true)
+    expect(maxScn).toBe(200)
   })
 })

@@ -34,7 +34,11 @@ describe('#change-detection row-hash: hashPayload', () => {
   })
 
   test('an undefined-valued key hashes the same as the key being absent', () => {
-    expect(hashPayload({ a: 1, b: undefined })).toBe(hashPayload({ a: 1 }))
+    const golden =
+      '015abd7f5cc57a2dd94b7590f04ad8084273905ee33ec5cebeae62276a97f862'
+
+    expect(hashPayload({ a: 1 })).toBe(golden)
+    expect(hashPayload({ a: 1, b: undefined })).toBe(golden)
   })
 
   test('nested object key order DOES change the hash (only top level is sorted)', () => {
