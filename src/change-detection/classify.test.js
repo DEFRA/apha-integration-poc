@@ -148,9 +148,9 @@ describe('#change-detection classify: planChanges', () => {
     expect(entries[0].event.type).toBe('insert')
   })
 
-  test('a null prior (as a per-row get returns) classifies as insert, same as a missing Map key', () => {
-    // Stage-5 getMany omits absent ids (lookup -> undefined); the old per-row
-    // path stored null. Both must hit the !prev insert branch identically.
+  test('a null prior and a missing Map key both classify as insert', () => {
+    // A Map miss yields undefined and an explicit null prior yields null; both
+    // satisfy `!prev`, so the lookup must stay falsy-checked, not `=== undefined`.
     const fromNull = planChanges({
       rows: [row()],
       primaryKey: 'pyid',
