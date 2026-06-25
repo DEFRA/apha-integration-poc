@@ -1,11 +1,12 @@
 import { EventEmitter } from 'node:events'
-import crypto from 'node:crypto'
 import oracledb from 'oracledb'
 
 import { getPool } from '#/oracledb.js'
 import { refreshMv } from '#/change-detection/mv-refresh.js'
 import { startCqnWakeup } from '#/change-detection/cqn-wakeup.js'
 import { ensureMaterializedView } from '#/change-detection/mv-setup.js'
+import { planChanges } from '#/change-detection/classify.js'
+import { lowercaseKeys } from '#/change-detection/row-hash.js'
 
 /**
  * One detector per source. Owns the sweep loop, the CQN subscription (if
@@ -262,55 +263,48 @@ export class Detector extends EventEmitter {
         checkpoint
       )
 
-      let maxScn = checkpoint
+      const priorState = await this.loadPriorState(changedRows)
+
+      const { entries, maxScn: changedMaxScn } = planChanges({
+        rows: changedRows,
+        primaryKey: this.sourceConfig.primaryKey,
+        priorState
+      })
+
       let insertCount = 0
       let updateCount = 0
 
-      for (const row of changedRows) {
-        const id = row[this.sourceConfig.primaryKey]
-        const sourceScn = Number(row.source_scn)
-        const payload = stripInternalColumns(row)
-        const payloadHash = hashPayload(payload)
+      for (const entry of entries) {
+        // Emit then persist, per row, so the partial-failure window stays one
+        // row (a crash mid-loop re-emits at most that row on the next sweep).
+        if (entry.event) {
+          this.emitChange({ ...entry.event, source: this.sourceName })
 
-        const prev = await this.stateStore.get(this.sourceName, id)
-
-        if (!prev) {
-          this.emitChange({
-            type: 'insert',
-            source: this.sourceName,
-            id,
-            row: payload,
-            before: undefined
-          })
-
-          insertCount++
-        } else if (prev.payloadHash !== payloadHash) {
-          this.emitChange({
-            type: 'update',
-            source: this.sourceName,
-            id,
-            row: payload,
-            before: prev.payload
-          })
-
-          updateCount++
+          if (entry.event.type === 'insert') {
+            insertCount++
+          } else {
+            updateCount++
+          }
         }
-        // else: same hash — false positive from refresh/block SCN, skip silently
 
         await this.stateStore.upsert(
           this.sourceName,
-          id,
-          payloadHash,
-          payload,
-          sourceScn
+          entry.id,
+          entry.payloadHash,
+          entry.payload,
+          entry.sourceScn
         )
-
-        if (sourceScn > maxScn) {
-          maxScn = sourceScn
-        }
       }
 
       const deleteCount = await this.detectDeletions(connection)
+
+      // Advance only forward, and never on an empty / pure-no-op sweep (see the
+      // maxScn contract in classify.js).
+      let maxScn = checkpoint
+
+      if (changedMaxScn !== null && changedMaxScn > maxScn) {
+        maxScn = changedMaxScn
+      }
 
       if (maxScn > checkpoint) {
         await this.checkpointStore.set(this.sourceName, maxScn)
@@ -336,6 +330,20 @@ export class Detector extends EventEmitter {
     } finally {
       await connection.close().catch(() => {})
     }
+  }
+
+  async loadPriorState(rows) {
+    // Prior row-state for the changed ids, keyed by id, as the classifier
+    // expects. Per-row reads here; Stage-5 batches this into one getMany.
+    const priorState = new Map()
+
+    for (const row of rows) {
+      const id = row[this.sourceConfig.primaryKey]
+
+      priorState.set(id, await this.stateStore.get(this.sourceName, id))
+    }
+
+    return priorState
   }
 
   async fetchChangedRows(connection, checkpoint) {
@@ -449,49 +457,4 @@ function safeEmit(emitter, eventName, payload, logger) {
       )
     }
   }
-}
-
-function lowercaseKeys(obj) {
-  const out = {}
-
-  for (const key of Object.keys(obj)) {
-    out[key.toLowerCase()] = obj[key]
-  }
-
-  return out
-}
-
-function stripInternalColumns(row) {
-  const payload = { ...row }
-  delete payload.source_scn
-
-  return payload
-}
-
-function hashPayload(payload) {
-  // Sorted keys so column-order changes from the driver don't churn hashes;
-  // Date / BigInt / Buffer normalized so they round-trip stably.
-  const sorted = {}
-
-  for (const key of Object.keys(payload).sort()) {
-    sorted[key] = payload[key]
-  }
-
-  const json = JSON.stringify(sorted, (_key, value) => {
-    if (value instanceof Date) {
-      return value.toISOString()
-    }
-
-    if (typeof value === 'bigint') {
-      return value.toString()
-    }
-
-    if (Buffer.isBuffer(value)) {
-      return value.toString('base64')
-    }
-
-    return value
-  })
-
-  return crypto.createHash('sha256').update(json).digest('hex')
 }
