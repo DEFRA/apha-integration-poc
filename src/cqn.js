@@ -15,10 +15,10 @@ export async function createChangeQuery({ pool, query }) {
   const name = `cqn_${process.pid}_${Date.now()}_${++counter}`
 
   // The subscribing connection must stay open for the life of the
-  // subscription — node-oracledb ties the registration to it. Releasing it
-  // back to the pool while subscribed leaves the client library's
-  // notification machinery referencing a recycled connection, which surfaces
-  // as nondeterministic hangs at process exit.
+  // subscription — node-oracledb's notification machinery keeps using it.
+  // Releasing it back to the pool while subscribed leaves that machinery
+  // referencing a recycled connection, which surfaces as nondeterministic
+  // hangs at process exit.
   const connection = await getPool(pool).getConnection()
 
   const closeConnection = async () => {
