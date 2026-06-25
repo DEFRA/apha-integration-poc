@@ -333,17 +333,12 @@ export class Detector extends EventEmitter {
   }
 
   async loadPriorState(rows) {
-    // Prior row-state for the changed ids, keyed by id, as the classifier
-    // expects. Per-row reads here; Stage-5 batches this into one getMany.
-    const priorState = new Map()
+    // One batched read of all changed ids — a consistent pre-sweep snapshot,
+    // keyed by id, as the classifier expects. The ids are distinct (the MV's
+    // PK is unique), so the up-front snapshot equals a per-row read.
+    const ids = rows.map((row) => row[this.sourceConfig.primaryKey])
 
-    for (const row of rows) {
-      const id = row[this.sourceConfig.primaryKey]
-
-      priorState.set(id, await this.stateStore.get(this.sourceName, id))
-    }
-
-    return priorState
+    return this.stateStore.getMany(this.sourceName, ids)
   }
 
   async fetchChangedRows(connection, checkpoint) {
@@ -376,14 +371,17 @@ export class Detector extends EventEmitter {
     const liveIds = new Set(result.rows.map((row) => row.ID ?? row.id))
     const knownIds = await this.stateStore.listIds(this.sourceName)
 
-    let deleteCount = 0
+    const missingIds = knownIds.filter((id) => !liveIds.has(id))
 
-    for (const id of knownIds) {
-      if (liveIds.has(id)) {
-        continue
-      }
+    if (missingIds.length === 0) {
+      return 0
+    }
 
-      const prev = await this.stateStore.get(this.sourceName, id)
+    // Batch the `before` payloads for just the (usually small) deleted set.
+    const priorState = await this.stateStore.getMany(this.sourceName, missingIds)
+
+    for (const id of missingIds) {
+      const prev = priorState.get(id)
 
       this.emitChange({
         type: 'delete',
@@ -394,10 +392,9 @@ export class Detector extends EventEmitter {
       })
 
       await this.stateStore.delete(this.sourceName, id)
-      deleteCount++
     }
 
-    return deleteCount
+    return missingIds.length
   }
 
   emitChange(event) {

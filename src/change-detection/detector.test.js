@@ -111,6 +111,19 @@ function setup({
 
   const stateStore = {
     get: vi.fn(async (_source, id) => state.get(id) ?? null),
+    getMany: vi.fn(async (_source, ids) => {
+      const byId = new Map()
+
+      for (const id of ids) {
+        const doc = state.get(id)
+
+        if (doc) {
+          byId.set(id, doc)
+        }
+      }
+
+      return byId
+    }),
     upsert: vi.fn(async (source, id, payloadHash, payload, sourceScn) => {
       ops.push({ op: 'upsert', id })
       upserts.push({ source, id, payloadHash, payload, sourceScn })

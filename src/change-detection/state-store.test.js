@@ -89,4 +89,70 @@ describe('#stateStore', () => {
     expect(await store.get('workorders', 'WS-1')).toBeNull()
     expect(await store.get('workorders', 'WS-2')).not.toBeNull()
   })
+
+  test('getMany returns an empty Map for no ids', async () => {
+    const result = await store.getMany('workorders', [])
+
+    expect(result).toBeInstanceOf(Map)
+    expect(result.size).toBe(0)
+  })
+
+  test('getMany returns a Map keyed by id with the full document shape', async () => {
+    await store.upsert('workorders', 'WS-1', 'h1', { pyid: 'WS-1', s: 'Open' }, 10)
+    await store.upsert('workorders', 'WS-2', 'h2', { pyid: 'WS-2', s: 'Closed' }, 20)
+
+    const result = await store.getMany('workorders', ['WS-1', 'WS-2'])
+
+    expect(result.size).toBe(2)
+    expect(result.get('WS-1')).toMatchObject({
+      source: 'workorders',
+      id: 'WS-1',
+      payloadHash: 'h1',
+      payload: { pyid: 'WS-1', s: 'Open' },
+      sourceScn: 10
+    })
+    expect(result.get('WS-2')).toMatchObject({ payloadHash: 'h2', sourceScn: 20 })
+  })
+
+  test('getMany omits absent ids and ignores other sources', async () => {
+    await store.upsert('workorders', 'WS-1', 'h', {}, 1)
+    await store.upsert('customers', 'C-1', 'h', {}, 1)
+
+    const result = await store.getMany('workorders', ['WS-1', 'WS-missing', 'C-1'])
+
+    expect([...result.keys()]).toEqual(['WS-1'])
+  })
+
+  test('getMany reads across chunk boundaries with no missed or duplicate ids', async () => {
+    const ids = Array.from({ length: 1001 }, (_, i) => `WS-${i}`)
+
+    await db.collection('cqn_row_state').insertMany(
+      ids.map((id) => ({
+        source: 'workorders',
+        id,
+        payloadHash: 'h',
+        payload: {},
+        sourceScn: 1
+      }))
+    )
+
+    const result = await store.getMany('workorders', ids)
+
+    expect(result.size).toBe(1001)
+    expect(result.get('WS-0')).toBeDefined()
+    expect(result.get('WS-1000')).toBeDefined()
+  })
+
+  test('getMany returns a fresh Map not aliased to store state', async () => {
+    await store.upsert('workorders', 'WS-1', 'h', {}, 1)
+
+    const a = await store.getMany('workorders', ['WS-1'])
+    const b = await store.getMany('workorders', ['WS-1'])
+
+    expect(a).not.toBe(b)
+
+    a.delete('WS-1')
+
+    expect((await store.getMany('workorders', ['WS-1'])).size).toBe(1)
+  })
 })

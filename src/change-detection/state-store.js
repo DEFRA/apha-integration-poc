@@ -30,6 +30,36 @@ export class StateStore {
     return this.collection.findOne({ source, id })
   }
 
+  /**
+   * Batched read of many ids in one (chunked) query, returned as a fresh
+   * Map<id, doc>. Ids absent from the store are simply absent from the Map.
+   * Chunked so a bulk startup sweep can't blow past MongoDB's 16 MB command
+   * limit on the `$in` list.
+   */
+  async getMany(source, ids) {
+    const byId = new Map()
+
+    if (ids.length === 0) {
+      return byId
+    }
+
+    const CHUNK = 1000
+
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const chunk = ids.slice(i, i + CHUNK)
+
+      const docs = await this.collection
+        .find({ source, id: { $in: chunk } })
+        .toArray()
+
+      for (const doc of docs) {
+        byId.set(doc.id, doc)
+      }
+    }
+
+    return byId
+  }
+
   async upsert(source, id, payloadHash, payload, sourceScn) {
     await this.collection.updateOne(
       { source, id },
