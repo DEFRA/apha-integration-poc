@@ -105,8 +105,14 @@ describe('#change-detection watcher', () => {
     watcher.on('change', (e) => received.push(e))
     await tick()
 
-    detector.emit('change', makeEvent({ id: 'open', row: { pystatuswork: 'Open' } }))
-    detector.emit('change', makeEvent({ id: 'closed', row: { pystatuswork: 'Closed' } }))
+    detector.emit(
+      'change',
+      makeEvent({ id: 'open', row: { pystatuswork: 'Open' } })
+    )
+    detector.emit(
+      'change',
+      makeEvent({ id: 'closed', row: { pystatuswork: 'Closed' } })
+    )
 
     expect(received.map((e) => e.id)).toEqual(['closed'])
   })

@@ -204,7 +204,10 @@ describe('#change-detection detector: runSweep orchestration', () => {
   test('insert + update emit then upsert, in row order, with correct payloads and args', async () => {
     const before = { pyid: 'B-1', col: 'old' }
     const priorState = new Map([
-      ['B-1', { payloadHash: hashPayload(before), payload: before, sourceScn: 10 }]
+      [
+        'B-1',
+        { payloadHash: hashPayload(before), payload: before, sourceScn: 10 }
+      ]
     ])
 
     const { detector, changes, ops, upserts, setCalls } = setup({
@@ -314,7 +317,9 @@ describe('#change-detection detector: runSweep orchestration', () => {
 
     // The delete phase runs after the changed-row upserts.
     const upsertIdx = ops.findIndex((o) => o.op === 'upsert' && o.id === 'A-1')
-    const deleteEmitIdx = ops.findIndex((o) => o.op === 'emit' && o.id === 'X-1')
+    const deleteEmitIdx = ops.findIndex(
+      (o) => o.op === 'emit' && o.id === 'X-1'
+    )
     expect(upsertIdx).toBeGreaterThanOrEqual(0)
     expect(upsertIdx).toBeLessThan(deleteEmitIdx)
 
@@ -325,7 +330,10 @@ describe('#change-detection detector: runSweep orchestration', () => {
     const logger = makeCapturingLogger()
     const before = { pyid: 'B-1', col: 'old' }
     const priorState = new Map([
-      ['B-1', { payloadHash: hashPayload(before), payload: before, sourceScn: 10 }]
+      [
+        'B-1',
+        { payloadHash: hashPayload(before), payload: before, sourceScn: 10 }
+      ]
     ])
 
     const { detector } = setup({
@@ -432,7 +440,9 @@ describe('#change-detection detector: runSweep orchestration', () => {
     // Second sweep runs cleanly.
     await detector.triggerSweep('test')
 
-    expect(changes.some((e) => e.id === 'A-1' && e.type === 'insert')).toBe(true)
+    expect(changes.some((e) => e.id === 'A-1' && e.type === 'insert')).toBe(
+      true
+    )
     expect(detector.activeSweep).toBeNull()
     expect(harness.closeCount).toBe(2)
   })

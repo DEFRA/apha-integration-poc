@@ -380,7 +380,10 @@ export class Detector extends EventEmitter {
     }
 
     // Batch the `before` payloads for just the (usually small) deleted set.
-    const priorState = await this.stateStore.getMany(this.sourceName, missingIds)
+    const priorState = await this.stateStore.getMany(
+      this.sourceName,
+      missingIds
+    )
 
     for (const id of missingIds) {
       const prev = priorState.get(id)

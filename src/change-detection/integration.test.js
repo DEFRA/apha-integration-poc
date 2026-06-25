@@ -34,7 +34,10 @@ const { CANNED_ID, fakePool } = vi.hoisted(() => {
     close: async () => {}
   }
 
-  return { CANNED_ID: id, fakePool: { getConnection: async () => fakeConnection } }
+  return {
+    CANNED_ID: id,
+    fakePool: { getConnection: async () => fakeConnection }
+  }
 })
 
 vi.mock('#/oracledb.js', () => ({ getPool: () => fakePool }))
@@ -92,7 +95,10 @@ describe('#change-detection: registry/detector/watcher wiring (no Oracle)', () =
     try {
       config.set('changeDetection.mvEnabled', original.mvEnabled)
       config.set('changeDetection.defaultIntervalMs', original.intervalMs)
-      config.set('changeDetection.sources.workorders.cqnQuery', original.cqnQuery)
+      config.set(
+        'changeDetection.sources.workorders.cqnQuery',
+        original.cqnQuery
+      )
     } finally {
       await client.close()
     }
@@ -169,7 +175,8 @@ describe('#change-detection: registry/detector/watcher wiring (no Oracle)', () =
     await vi.waitFor(
       () =>
         expect(
-          ra.some((e) => e.id === CANNED_ID) && rb.some((e) => e.id === CANNED_ID)
+          ra.some((e) => e.id === CANNED_ID) &&
+            rb.some((e) => e.id === CANNED_ID)
         ).toBe(true),
       { timeout: 5_000, interval: 50 }
     )

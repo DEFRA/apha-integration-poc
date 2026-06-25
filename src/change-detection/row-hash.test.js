@@ -92,7 +92,11 @@ describe('#change-detection row-hash: lowercaseKeys', () => {
 describe('#change-detection row-hash: stripInternalColumns', () => {
   test('removes source_scn and leaves everything else', () => {
     expect(
-      stripInternalColumns({ pyid: 'A-1', pystatuswork: 'Open', source_scn: 123 })
+      stripInternalColumns({
+        pyid: 'A-1',
+        pystatuswork: 'Open',
+        source_scn: 123
+      })
     ).toEqual({ pyid: 'A-1', pystatuswork: 'Open' })
   })
 

@@ -111,8 +111,20 @@ describe('#stateStore', () => {
   })
 
   test('getMany returns a Map keyed by id with the full document shape', async () => {
-    await store.upsert('workorders', 'WS-1', 'h1', { pyid: 'WS-1', s: 'Open' }, 10)
-    await store.upsert('workorders', 'WS-2', 'h2', { pyid: 'WS-2', s: 'Closed' }, 20)
+    await store.upsert(
+      'workorders',
+      'WS-1',
+      'h1',
+      { pyid: 'WS-1', s: 'Open' },
+      10
+    )
+    await store.upsert(
+      'workorders',
+      'WS-2',
+      'h2',
+      { pyid: 'WS-2', s: 'Closed' },
+      20
+    )
 
     const result = await store.getMany('workorders', ['WS-1', 'WS-2'])
 
@@ -124,14 +136,21 @@ describe('#stateStore', () => {
       payload: { pyid: 'WS-1', s: 'Open' },
       sourceScn: 10
     })
-    expect(result.get('WS-2')).toMatchObject({ payloadHash: 'h2', sourceScn: 20 })
+    expect(result.get('WS-2')).toMatchObject({
+      payloadHash: 'h2',
+      sourceScn: 20
+    })
   })
 
   test('getMany omits absent ids and ignores other sources', async () => {
     await store.upsert('workorders', 'WS-1', 'h', {}, 1)
     await store.upsert('customers', 'C-1', 'h', {}, 1)
 
-    const result = await store.getMany('workorders', ['WS-1', 'WS-missing', 'C-1'])
+    const result = await store.getMany('workorders', [
+      'WS-1',
+      'WS-missing',
+      'C-1'
+    ])
 
     expect([...result.keys()]).toEqual(['WS-1'])
   })
