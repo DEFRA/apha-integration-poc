@@ -335,7 +335,9 @@ export class Detector extends EventEmitter {
   async loadPriorState(rows) {
     // One batched read of all changed ids — a consistent pre-sweep snapshot,
     // keyed by id, as the classifier expects. The ids are distinct (the MV's
-    // PK is unique), so the up-front snapshot equals a per-row read.
+    // PK is unique), so the up-front snapshot equals a per-row read. This holds
+    // the prior-state Map alongside changedRows (~2x peak heap on a large
+    // catch-up sweep) — acceptable for the volumes here.
     const ids = rows.map((row) => row[this.sourceConfig.primaryKey])
 
     return this.stateStore.getMany(this.sourceName, ids)

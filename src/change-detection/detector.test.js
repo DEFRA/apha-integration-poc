@@ -373,6 +373,34 @@ describe('#change-detection detector: runSweep orchestration', () => {
     await detector.stop()
   })
 
+  test('multiple deletions in one sweep emit in listIds order, each with its own before payload', async () => {
+    const x = { pyid: 'X-1', col: 'x' }
+    const y = { pyid: 'Y-1', col: 'y' }
+    const priorState = new Map([
+      ['X-1', { payloadHash: hashPayload(x), payload: x, sourceScn: 1 }],
+      ['Y-1', { payloadHash: hashPayload(y), payload: y, sourceScn: 2 }]
+    ])
+
+    const { detector, changes, stateStore } = setup({
+      checkpoint: 0,
+      priorState,
+      changedRows: [{ pyid: 'A-1', col: 'new', source_scn: 100 }],
+      liveIds: ['A-1'] // X-1 and Y-1 both absent -> both deleted
+    })
+
+    await detector.runSweep('test')
+
+    const deletes = changes.filter((e) => e.type === 'delete')
+    expect(deletes.map((e) => e.id)).toEqual(['X-1', 'Y-1'])
+    expect(deletes[0].before).toEqual(x)
+    expect(deletes[1].before).toEqual(y)
+
+    expect(stateStore.delete.mock.calls).toEqual([
+      ['workorders', 'X-1'],
+      ['workorders', 'Y-1']
+    ])
+  })
+
   test('a sweep failure surfaces an error event, closes the connection, and the next sweep succeeds', async () => {
     const { detector, errors, changes } = setup({
       checkpoint: 0,

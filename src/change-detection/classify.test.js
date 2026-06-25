@@ -148,6 +148,24 @@ describe('#change-detection classify: planChanges', () => {
     expect(entries[0].event.type).toBe('insert')
   })
 
+  test('a null prior (as a per-row get returns) classifies as insert, same as a missing Map key', () => {
+    // Stage-5 getMany omits absent ids (lookup -> undefined); the old per-row
+    // path stored null. Both must hit the !prev insert branch identically.
+    const fromNull = planChanges({
+      rows: [row()],
+      primaryKey: 'pyid',
+      priorState: new Map([['A-1', null]])
+    })
+    const fromMissing = planChanges({
+      rows: [row()],
+      primaryKey: 'pyid',
+      priorState: new Map()
+    })
+
+    expect(fromNull.entries[0].event.type).toBe('insert')
+    expect(fromMissing.entries[0].event.type).toBe('insert')
+  })
+
   test('classification is driven only by the hash — a matching hash skips even if the prior payload object differs', () => {
     const current = { pyid: 'A-1', pystatuswork: 'Open' }
 

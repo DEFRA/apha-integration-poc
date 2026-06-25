@@ -90,11 +90,24 @@ describe('#stateStore', () => {
     expect(await store.get('workorders', 'WS-2')).not.toBeNull()
   })
 
-  test('getMany returns an empty Map for no ids', async () => {
+  test('getMany returns an empty Map for no ids and issues no query', async () => {
+    const findSpy = vi.spyOn(store.collection, 'find')
+
     const result = await store.getMany('workorders', [])
 
     expect(result).toBeInstanceOf(Map)
     expect(result.size).toBe(0)
+    expect(findSpy).not.toHaveBeenCalled()
+
+    findSpy.mockRestore()
+  })
+
+  test('getMany collapses duplicate ids to a single Map entry', async () => {
+    await store.upsert('workorders', 'WS-1', 'h', {}, 1)
+
+    const result = await store.getMany('workorders', ['WS-1', 'WS-1'])
+
+    expect(result.size).toBe(1)
   })
 
   test('getMany returns a Map keyed by id with the full document shape', async () => {
