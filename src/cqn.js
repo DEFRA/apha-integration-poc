@@ -17,9 +17,8 @@ export async function createChangeQuery({ pool, query }) {
   // The subscribing connection must stay open for the life of the
   // subscription — node-oracledb ties the registration to it. Releasing it
   // back to the pool while subscribed leaves the client library's
-  // notification machinery referencing a recycled connection, which shows
-  // up as nondeterministic hangs at process exit (CI workers killed with
-  // "Worker exited unexpectedly" after every test passed).
+  // notification machinery referencing a recycled connection, which surfaces
+  // as nondeterministic hangs at process exit.
   const connection = await getPool(pool).getConnection()
 
   const closeConnection = async () => {

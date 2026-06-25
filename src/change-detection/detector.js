@@ -339,8 +339,9 @@ export class Detector extends EventEmitter {
   }
 
   async fetchChangedRows(connection, checkpoint) {
-    // ORA_ROWSCN projected as source_scn during MV creation — see the 010
-    // setup script for why the MV's *own* ORA_ROWSCN would be useless here.
+    // ORA_ROWSCN is projected as source_scn during MV creation; the MV's own
+    // ORA_ROWSCN is useless as a watermark because a COMPLETE refresh
+    // truncates and reloads every row, bumping it on every sweep.
     const result = await connection.execute(
       `SELECT * FROM ${this.sourceConfig.mv} WHERE source_scn > :checkpoint`,
       { checkpoint },

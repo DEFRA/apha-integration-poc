@@ -5,7 +5,6 @@ import { MongoClient } from 'mongodb'
 // with whatever env vars exist at module-load time — which is BEFORE the
 // vitest-mongodb setup hook sets `process.env.MONGO_URI`. The Hapi server's
 // mongoDb plugin then connects to the default URL and the test fails.
-// Following the pattern in src/plugins/mongodb.test.js.
 
 /**
  * End-to-end integration test: boots the real Hapi server (which registers

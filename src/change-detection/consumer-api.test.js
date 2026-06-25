@@ -51,8 +51,9 @@ describe.skipIf(skip)('#change-detection: consumer API', () => {
 
   beforeEach(async () => {
     // shutdown() first so any in-flight CQN-triggered sweep from the
-    // previous test's afterEach drains before we wipe state. See the
-    // matching comment in basics.test.js for the full reasoning.
+    // previous test's afterEach (its DELETE fires CQN on the still-subscribed
+    // detector) drains before we wipe state — otherwise the drained sweep
+    // would write rows back after the wipe.
     await shutdown()
 
     await db.collection('cqn_checkpoints').deleteMany({})

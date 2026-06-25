@@ -128,8 +128,7 @@ async function runAsMvOwner(poolName, fn) {
   // We connect as the MV owner — NOT the detector's pool user — because
   // Oracle's CREATE MATERIALIZED VIEW privilege check parses the defining
   // query under the session user's identity. ALTER SESSION SET CURRENT_SCHEMA
-  // alone is not enough for cross-schema SELECTs. See the parallel finding
-  // in compose/oracledb/setup.d/009_*.sql (now superseded by this code).
+  // alone is not enough for cross-schema SELECTs.
   const pool = getPool(poolName)
 
   const connection = await oracledb.getConnection({
