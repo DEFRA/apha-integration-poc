@@ -39,6 +39,12 @@ vi.mock('#/change-detection/mv-refresh.js', () => ({
   }
 }))
 
+// Mocked so start() can wire up the timer without touching Oracle (used by the
+// "timer survives a sweep error" test).
+vi.mock('#/change-detection/mv-setup.js', () => ({
+  ensureMaterializedView: async () => ({ created: false })
+}))
+
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 function makeSilentLogger() {
@@ -55,6 +61,22 @@ function makeSilentLogger() {
   return logger
 }
 
+function makeCapturingLogger() {
+  const debug = []
+  const logger = {
+    info() {},
+    warn() {},
+    error() {},
+    debug: (...args) => debug.push(args),
+    child() {
+      return logger
+    }
+  }
+  logger.debugCalls = debug
+
+  return logger
+}
+
 const SOURCE_CONFIG = {
   pool: 'pega',
   mv: 'APHA_POC.X_MV',
@@ -66,7 +88,8 @@ function setup({
   checkpoint = 0,
   priorState = new Map(),
   changedRows = [],
-  liveIds = []
+  liveIds = [],
+  logger = makeSilentLogger()
 } = {}) {
   harness.order = []
   harness.closeCount = 0
@@ -105,7 +128,7 @@ function setup({
     sourceConfig: SOURCE_CONFIG,
     checkpointStore,
     stateStore,
-    logger: makeSilentLogger(),
+    logger,
     intervalMs: 60_000,
     mvEnabled: true
   })
@@ -192,10 +215,13 @@ describe('#change-detection detector: runSweep orchestration', () => {
       type: 'insert',
       source: 'workorders',
       id: 'A-1',
-      row: { pyid: 'A-1', col: 'new' },
-      before: undefined
+      row: { pyid: 'A-1', col: 'new' }
     })
-    expect(changes[0].detectedAt).toBeDefined()
+    // `before` must be present-and-undefined on an insert, not absent.
+    expect('before' in changes[0]).toBe(true)
+    expect(changes[0].before).toBeUndefined()
+    // detectedAt is an ISO string, not a raw Date.
+    expect(typeof changes[0].detectedAt).toBe('string')
 
     expect(changes[1]).toMatchObject({
       type: 'update',
@@ -204,6 +230,7 @@ describe('#change-detection detector: runSweep orchestration', () => {
       row: { pyid: 'B-1', col: 'changed' },
       before: { pyid: 'B-1', col: 'old' }
     })
+    expect(typeof changes[1].detectedAt).toBe('string')
 
     // Emit-then-upsert, interleaved per row (the one-row failure window).
     expect(ops).toEqual([
@@ -219,6 +246,13 @@ describe('#change-detection detector: runSweep orchestration', () => {
       payloadHash: hashPayload({ pyid: 'A-1', col: 'new' }),
       payload: { pyid: 'A-1', col: 'new' },
       sourceScn: 100
+    })
+    expect(upserts[1]).toEqual({
+      source: 'workorders',
+      id: 'B-1',
+      payloadHash: hashPayload({ pyid: 'B-1', col: 'changed' }),
+      payload: { pyid: 'B-1', col: 'changed' },
+      sourceScn: 110
     })
 
     expect(setCalls).toEqual([110])
@@ -272,6 +306,58 @@ describe('#change-detection detector: runSweep orchestration', () => {
     expect(upsertIdx).toBeLessThan(deleteEmitIdx)
 
     expect(stateStore.delete).toHaveBeenCalledWith('workorders', 'X-1')
+  })
+
+  test('the "Sweep complete" debug log reports examined / counts / checkpoint / columns', async () => {
+    const logger = makeCapturingLogger()
+    const before = { pyid: 'B-1', col: 'old' }
+    const priorState = new Map([
+      ['B-1', { payloadHash: hashPayload(before), payload: before, sourceScn: 10 }]
+    ])
+
+    const { detector } = setup({
+      checkpoint: 50,
+      priorState,
+      changedRows: [
+        { pyid: 'A-1', col: 'new', source_scn: 100 }, // insert
+        { pyid: 'B-1', col: 'changed', source_scn: 110 } // update
+      ],
+      liveIds: ['A-1', 'B-1'],
+      logger
+    })
+
+    await detector.runSweep('cqn')
+
+    const entry = logger.debugCalls.find((a) => a[1] === 'Sweep complete')
+    expect(entry).toBeDefined()
+    expect(entry[0]).toMatchObject({
+      reason: 'cqn',
+      examined: 2,
+      inserts: 1,
+      updates: 1,
+      deletes: 0,
+      checkpoint: 110,
+      columns: []
+    })
+  })
+
+  test('the timer survives a sweep error — the detector keeps running', async () => {
+    const { detector } = setup({ checkpoint: 0, changedRows: [], liveIds: [] })
+
+    await detector.start()
+    expect(detector.timer).toBeDefined()
+
+    detector.fetchChangedRows = async () => {
+      throw new Error('ORA-1: boom')
+    }
+
+    await detector.triggerSweep('test')
+
+    // The sweep error must not tear the detector down.
+    expect(detector.timer).toBeDefined()
+    expect(detector.stopped).toBe(false)
+
+    await detector.stop()
   })
 
   test('a sweep failure surfaces an error event, closes the connection, and the next sweep succeeds', async () => {
