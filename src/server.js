@@ -7,6 +7,7 @@ import { router } from '#/plugins/router.js'
 import { requestLogger } from '#/plugins/request-logger.js'
 import { mongoDb } from '#/plugins/mongodb.js'
 import { oracleDb } from '#/plugins/oracledb.js'
+import { changeDetection } from '#/plugins/change-detection.js'
 import { failAction } from '#/common/helpers/fail-action.js'
 import { pulse } from '#/plugins/pulse.js'
 import { requestTracing } from '#/plugins/request-tracing.js'
@@ -42,12 +43,14 @@ export async function createServer() {
   })
 
   // Hapi Plugins:
-  // requestLogger  - automatically logs incoming requests
-  // requestTracing - trace header logging and propagation
-  // secureContext  - loads CA certificates from environment config
-  // pulse          - provides shutdown handlers
-  // mongoDb        - sets up mongo connection pool and attaches to `server` and `request` objects
-  // router         - routes used in the app
+  // requestLogger    - automatically logs incoming requests
+  // requestTracing   - trace header logging and propagation
+  // secureContext    - loads CA certificates from environment config
+  // pulse            - provides shutdown handlers
+  // mongoDb          - sets up mongo connection pool and attaches to `server` and `request` objects
+  // oracleDb         - graceful shutdown for the OracleDB pools
+  // changeDetection  - bootstraps the change-detection subsystem (MV refresh + CQN wake-up + emit)
+  // router           - routes used in the app
   await server.register([
     requestLogger,
     requestTracing,
@@ -59,6 +62,7 @@ export async function createServer() {
       options: config.get('mongo')
     },
     oracleDb,
+    changeDetection,
     router
   ])
 
