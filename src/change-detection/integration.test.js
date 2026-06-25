@@ -119,17 +119,22 @@ describe('#change-detection: registry/detector/watcher wiring (no Oracle)', () =
   test('a consumer attaching .on() after watch() resolves still receives the startup-sweep event', async () => {
     const watcher = await watch('workorders')
 
-    // The startup sweep already ran inside watch(); the buffer must replay it.
+    // The startup sweep ran to completion INSIDE watch(), before we attach —
+    // and the real sweep ran it (not a shortcut). No further sweep can fire
+    // (60s interval, no CQN), so a 'change' reaching a listener attached now
+    // can only come from the pre-attach buffer, never from live delivery.
+    expect(fetchSpy).toHaveBeenCalled()
+
     const received = []
     watcher.on('change', (event) => received.push(event))
+
+    // The buffer drains on a microtask, never synchronously on attach.
+    expect(received).toHaveLength(0)
 
     await vi.waitFor(
       () => expect(received.some((e) => e.id === CANNED_ID)).toBe(true),
       { timeout: 5_000, interval: 50 }
     )
-
-    // The event must have come through the real sweep, not a shortcut.
-    expect(fetchSpy).toHaveBeenCalled()
 
     // Exactly one delivery — a double-drain regression would deliver two.
     expect(received.filter((e) => e.id === CANNED_ID)).toHaveLength(1)
