@@ -89,11 +89,13 @@ describe('#change-detection: registry/detector/watcher wiring (no Oracle)', () =
   })
 
   afterAll(async () => {
-    config.set('changeDetection.mvEnabled', original.mvEnabled)
-    config.set('changeDetection.defaultIntervalMs', original.intervalMs)
-    config.set('changeDetection.sources.workorders.cqnQuery', original.cqnQuery)
-
-    await client.close()
+    try {
+      config.set('changeDetection.mvEnabled', original.mvEnabled)
+      config.set('changeDetection.defaultIntervalMs', original.intervalMs)
+      config.set('changeDetection.sources.workorders.cqnQuery', original.cqnQuery)
+    } finally {
+      await client.close()
+    }
   })
 
   beforeEach(async () => {
@@ -126,6 +128,12 @@ describe('#change-detection: registry/detector/watcher wiring (no Oracle)', () =
       { timeout: 5_000, interval: 50 }
     )
 
+    // The event must have come through the real sweep, not a shortcut.
+    expect(fetchSpy).toHaveBeenCalled()
+
+    // Exactly one delivery — a double-drain regression would deliver two.
+    expect(received.filter((e) => e.id === CANNED_ID)).toHaveLength(1)
+
     const event = received.find((e) => e.id === CANNED_ID)
 
     expect(event.type).toBe('insert')
@@ -143,6 +151,10 @@ describe('#change-detection: registry/detector/watcher wiring (no Oracle)', () =
     const detector = _detectorForTesting('workorders')
     expect(detector).toBeDefined()
     expect(a).not.toBe(b)
+
+    // Exactly one detector: each watcher attached one 'change' listener to the
+    // shared detector. Two detectors (only one registered) would show 1 here.
+    expect(detector.listenerCount('change')).toBe(2)
 
     const ra = []
     const rb = []

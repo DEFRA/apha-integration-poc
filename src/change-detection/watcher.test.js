@@ -5,9 +5,9 @@ import { createWatcher } from '#/change-detection/watcher.js'
 /**
  * Unit tests for the consumer-facing watcher. These drive a fake
  * EventEmitter-shaped "detector" so the pre-attach buffer, filter/shape
- * application, error isolation, and stop() detaching are all exercised
- * without Oracle or Mongo — the integration suites that exercise the real
- * detector are Oracle-gated and do not run everywhere.
+ * application, error isolation, and stop() detaching are all exercised in
+ * isolation. The end-to-end buffer drain against the real detector lives in
+ * integration.test.js.
  */
 
 function makeFakeDetector() {
